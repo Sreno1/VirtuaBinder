@@ -10,13 +10,16 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "@lucide/svelte": "^1.22.0",
     "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "@types/leaflet": "^1.9.21",
     "cities.json": "^1.1.59",
     "jszip": "^3.10.1",
-    "lucide-svelte": "^0.468.0",
+    "leaflet": "^1.9.4",
     "pdfjs-dist": "^4.10.38",
     "svelte": "^5.15.0",
     "svelte-dnd-action": "^0.9.70",
+    "tippy.js": "^6.3.7",
     "vite": "^5.4.11"
   },
   "devDependencies": {
