@@ -1,0 +1,29 @@
+{
+  "name": "timeline-binder",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "cities.json": "^1.1.59",
+    "jszip": "^3.10.1",
+    "lucide-svelte": "^0.468.0",
+    "pdfjs-dist": "^4.10.38",
+    "svelte": "^5.15.0",
+    "svelte-dnd-action": "^0.9.70",
+    "vite": "^5.4.11"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "svelte-check": "^4.1.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  }
+}
