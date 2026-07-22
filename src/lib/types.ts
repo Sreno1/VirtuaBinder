@@ -146,6 +146,7 @@ export type CityLocationRecord = {
 
 export type BinderUiState = {
   activeTab: Tab;
+  theme: string;
   ready: boolean;
   importStatus: string;
   importBusy: boolean;

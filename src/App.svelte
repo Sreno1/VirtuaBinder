@@ -1,14 +1,17 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { BookOpen, Download, MapPinned, Pencil, Play } from '@lucide/svelte';
+  import { BookOpen, Download, MapPinned, Pencil, Play, Settings } from '@lucide/svelte';
   import BookletTab from './lib/components/BookletTab.svelte';
   import DataTab from './lib/components/DataTab.svelte';
   import MapTab from './lib/components/MapTab.svelte';
   import PreviewTab from './lib/components/PreviewTab.svelte';
   import Shadowbox from './lib/components/Shadowbox.svelte';
   import TemplatesTab from './lib/components/TemplatesTab.svelte';
+  import ThemePicker from './lib/components/ThemePicker.svelte';
   import { binderStore } from './lib/state/binderStore';
   import type { Tab } from './lib/types';
+
+  let themePickerOpen = false;
 
   onMount(() => {
     void binderStore.initialize();
@@ -36,23 +39,34 @@
         <h1 class="text-base font-semibold tracking-normal text-neutral-50">VirtuaBinder</h1>
       </div>
 
-      <nav class="flex min-h-10 flex-wrap items-stretch border-t border-neutral-800 lg:border-t-0 lg:border-l" aria-label="Workflow">
-        <button class={tabClass('booklet')} type="button" on:click={() => binderStore.setActiveTab('booklet')}>
-          <BookOpen size={14} /> Booklet
+      <div class="flex min-h-10 flex-1 items-stretch justify-between border-t border-neutral-800 lg:border-t-0 lg:border-l">
+        <nav class="flex flex-wrap items-stretch" aria-label="Workflow">
+          <button class={tabClass('booklet')} type="button" on:click={() => binderStore.setActiveTab('booklet')}>
+            <BookOpen size={14} /> Booklet
+          </button>
+          <button class={tabClass('templates')} type="button" on:click={() => binderStore.setActiveTab('templates')}>
+            <Pencil size={14} /> Stencils
+          </button>
+          <button class={tabClass('preview')} type="button" on:click={() => binderStore.setActiveTab('preview')}>
+            <Play size={14} /> Preview
+          </button>
+          <button class={tabClass('map')} type="button" on:click={() => binderStore.setActiveTab('map')}>
+            <MapPinned size={14} /> Map
+          </button>
+          <button class={tabClass('data')} type="button" on:click={() => binderStore.setActiveTab('data')}>
+            <Download size={14} /> Data
+          </button>
+        </nav>
+        <button
+          class="inline-flex items-center gap-1.5 border-x border-neutral-800 px-2.5 text-xs font-medium text-neutral-300 transition hover:bg-neutral-800"
+          type="button"
+          aria-label="Open appearance settings"
+          title="Appearance"
+          on:click={() => (themePickerOpen = true)}
+        >
+          <Settings size={14} />
         </button>
-        <button class={tabClass('templates')} type="button" on:click={() => binderStore.setActiveTab('templates')}>
-          <Pencil size={14} /> Stencils
-        </button>
-        <button class={tabClass('preview')} type="button" on:click={() => binderStore.setActiveTab('preview')}>
-          <Play size={14} /> Preview
-        </button>
-        <button class={tabClass('map')} type="button" on:click={() => binderStore.setActiveTab('map')}>
-          <MapPinned size={14} /> Map
-        </button>
-        <button class={tabClass('data')} type="button" on:click={() => binderStore.setActiveTab('data')}>
-          <Download size={14} /> Data
-        </button>
-      </nav>
+      </div>
     </div>
   </header>
 
@@ -73,4 +87,8 @@
   {/if}
 
   <Shadowbox />
+
+  {#if themePickerOpen}
+    <ThemePicker onClose={() => (themePickerOpen = false)} />
+  {/if}
 </main>

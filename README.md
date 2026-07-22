@@ -10,8 +10,6 @@ Scan (or photograph) the pages of a physical binder, drop the images in, and Vir
 [![Deploy](https://github.com/Sreno1/VirtuaBinder/actions/workflows/deploy.yml/badge.svg)](https://github.com/Sreno1/VirtuaBinder/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> A written breakdown of the tech stack and engineering decisions behind this project lives in [PORTFOLIO.md](PORTFOLIO.md).
-
 ## Features
 
 - **PDF / image / ZIP import** — drop in scanned PDFs (multi-page supported), standalone JPG/PNG/WebP images, or a ZIP of any mix, and render them into the media library.
@@ -21,6 +19,7 @@ Scan (or photograph) the pages of a physical binder, drop the images in, and Vir
 - **Photo gallery** — attach one or more auxiliary photos to any item, viewable in a full-screen lightbox with keyboard/click navigation between images.
 - **Two-page preview mode** — flip through the binder as single pages or spreads, with an optional overlay of item boundaries.
 - **Interactive map** — every item with a location drops a pin on a zoomable map of North America; click a pin to open that item.
+- **Themable** — switch between light/dark color themes (Gruvbox, Everforest, One Dark/Light, Nord, Dracula, Solarized, and more) from the settings cog in the top-right of the main menu. Applies instantly and remembers your choice.
 - **Flip-card item viewer** — click any item to open a full-screen, flippable front/back "ticket" view with its metadata and gallery.
 - **Local-first persistence** — the entire project (scans, templates, pages, items) auto-saves to the browser's IndexedDB. Nothing is uploaded anywhere.
 - **Portable backups** — export the whole project as a single JSON file (images included, base64-encoded) and re-import it on any device/browser.
@@ -127,7 +126,7 @@ src/
 | UI framework | **Svelte 5** | Compiles away at build time — no runtime framework overhead, and its built-in reactivity (`$:`) maps cleanly onto a single-store architecture without needing a separate state library. |
 | Language | **TypeScript** | A single `AppState` type is threaded through the entire app — domain functions, the store, and every component prop are checked against it, which matters a lot in a schema that's evolved incrementally (see *Schema evolution* below). |
 | Build tool | **Vite** | Native ESM dev server, instant HMR, and first-class dynamic `import()` support — used deliberately to keep `pdf.js` and `JSZip` out of the initial bundle. |
-| Styling | **Tailwind CSS** | Utility classes kept the component files self-contained (no parallel `.css` file per component) and made the dark, ticket/binder-inspired visual language fast to iterate on. |
+| Styling | **Tailwind CSS** | Utility classes kept the component files self-contained (no parallel `.css` file per component) and made the dark, ticket/binder-inspired visual language fast to iterate on. Its color palette is routed through CSS custom properties so the whole app re-themes at runtime (see below). |
 | Maps | **Leaflet** + OpenStreetMap tiles | No API key, no billing account, no vendor lock-in — appropriate for a project with zero backend and zero budget. |
 | PDF rendering | **pdf.js** | Mozilla's PDF renderer runs entirely client-side via a Web Worker, rasterizing scanned PDF pages to `<canvas>` without ever sending the file anywhere. |
 | Archive handling | **JSZip** | Lets a user drop in a ZIP of mixed scans (PDFs + images) and have every entry extracted and processed in one import pass. |
@@ -153,6 +152,9 @@ This separation is what made it possible to fix layout/positioning bugs (below) 
 
 **Client-side PDF/ZIP ingestion pipeline.**
 Import supports single images, multi-page PDFs, and ZIPs containing any mix of both — all rasterized in-browser. PDFs are rendered page-by-page through `pdf.js` onto an off-screen canvas, downscaled to a max dimension, and re-encoded as JPEG at a fixed quality before being handed to the rest of the app as a plain `image: string` data URL — keeping every downstream component (which just needs `<img src>`) completely unaware of where the bytes came from.
+
+**A theme system that required touching zero existing components.**
+Every component already used exactly four Tailwind color families (`neutral`, `teal`, `amber`, `red`) via plain utility classes like `bg-neutral-950` or `text-teal-300` — never a raw hex value. That made it possible to add a full light/dark theme picker (Gruvbox, Everforest, One Dark/Light, Nord, Dracula, Solarized, and more) without editing a single component: `tailwind.config.cjs` now generates each shade as `rgb(var(--color-neutral-950) / <alpha>)` instead of a fixed hex, so the existing utility classes read from CSS custom properties at paint time. Each theme is defined as a handful of real anchor colors from its published palette (5-6 per family, not all 11 shades); a small HSL-interpolation utility (`lib/theme/palette.ts`) fills in the rest of the ramp, extrapolating past the outermost anchors for the extreme shades. Switching themes loops over four families and writes their computed ramp onto `document.documentElement.style`, applied once synchronously in `main.ts` before the app mounts to avoid any flash of the wrong theme.
 
 **Schema evolution without a migration system.**
 `AppState` has grown fields over time (item `kind`, item `gallery`) without a formal migration framework. Every load path funnels through a single `normalizeProject()` function that backfills missing fields with sane defaults, so older exported JSON files and older IndexedDB snapshots keep working after a schema change without the user ever noticing.

@@ -23,10 +23,12 @@ import { findLocationByInput, locationInputValue } from '../domain/locations';
 import { exportStateJson, parseStateJson } from '../services/exportJson';
 import { readGalleryPhotos } from '../services/importScans';
 import { loadStoredState, saveStoredState } from '../services/storage';
+import { applyTheme, loadStoredThemeId, saveThemeId } from '../theme/applyTheme';
 
 function initialUi(project: AppState): BinderUiState {
   return {
     activeTab: 'booklet',
+    theme: loadStoredThemeId(),
     ready: false,
     importStatus: '',
     importBusy: false,
@@ -140,6 +142,12 @@ export const binderStore = {
   setActiveTab(activeTab: Tab) {
     saveActiveTab(activeTab);
     updateUi({ activeTab });
+  },
+
+  setTheme(theme: string) {
+    applyTheme(theme);
+    saveThemeId(theme);
+    updateUi({ theme });
   },
 
   setSelectedTemplate(id: string) {
