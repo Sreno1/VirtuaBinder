@@ -19,9 +19,11 @@ export type ScanAsset = {
 };
 
 export type StagedCrop = {
+  /** Object URL for live preview only; not persisted. */
   image: string;
   width: number;
   height: number;
+  blob: Blob;
 };
 
 export type GalleryPhoto = {
@@ -40,12 +42,14 @@ export type StagedImportCandidate = {
   pageNumber: number;
   role: ScanRole;
   side: ScanSide;
+  /** Object URL for live preview only; not persisted. */
   image: string;
   width: number;
   height: number;
   createdAt: number;
   frontCrop?: StagedCrop;
   backCrop?: StagedCrop;
+  blob: Blob;
 };
 
 export type SlotTemplate = {

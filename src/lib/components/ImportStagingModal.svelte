@@ -99,27 +99,15 @@
     busy = true;
     status = `Cropping ${cropSide}...`;
     try {
-      const cropped = await cropScanAsset(
-        {
-          id: selected.id,
-          name: selected.name,
-          source: selected.source,
-          pageNumber: selected.pageNumber,
-          role: 'item',
-          side: cropSide,
-          image: selected.image,
-          width: selected.width,
-          height: selected.height,
-          createdAt: selected.createdAt
-        },
-        rect,
-        `${selected.name || selected.source} ${cropSide}`
-      );
+      const cropped = await cropScanAsset({ image: selected.image, width: selected.width, height: selected.height }, rect);
+      const previous = cropSide === 'front' ? selected.frontCrop : selected.backCrop;
+      if (previous) URL.revokeObjectURL(previous.image);
       updateCandidate(selected.id, {
         [cropSide === 'front' ? 'frontCrop' : 'backCrop']: {
-          image: cropped.image,
+          image: URL.createObjectURL(cropped.blob),
           width: cropped.width,
-          height: cropped.height
+          height: cropped.height,
+          blob: cropped.blob
         }
       });
       status = `Saved ${cropSide} crop for ${selected.name || selected.source}.`;
@@ -130,10 +118,21 @@
     }
   }
 
+  function revokeCandidateUrls(candidate: StagedImportCandidate) {
+    URL.revokeObjectURL(candidate.image);
+    if (candidate.frontCrop) URL.revokeObjectURL(candidate.frontCrop.image);
+    if (candidate.backCrop) URL.revokeObjectURL(candidate.backCrop.image);
+  }
+
+  function handleClose() {
+    candidates.forEach(revokeCandidateUrls);
+    onClose();
+  }
+
   function commit() {
     if (!candidates.length) return;
     onCommit(candidates);
-    onClose();
+    handleClose();
   }
 </script>
 
@@ -156,7 +155,7 @@
           <Upload size={16} /> Select files
           <input class="sr-only" type="file" accept=".pdf,.zip,image/jpeg,image/png,image/webp" multiple on:change={handleFiles} />
         </label>
-        <button class="rounded-md border border-neutral-700 p-2 text-neutral-200 hover:bg-neutral-800" type="button" aria-label="Close importer" on:click={onClose}>
+        <button class="rounded-md border border-neutral-700 p-2 text-neutral-200 hover:bg-neutral-800" type="button" aria-label="Close importer" on:click={handleClose}>
           <X size={18} />
         </button>
       </div>
@@ -266,7 +265,7 @@
     <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-800 p-4">
       <p class="text-sm text-neutral-400">{candidates.length} temporary scan{candidates.length === 1 ? '' : 's'} ready.</p>
       <div class="flex gap-2">
-        <button class="rounded-md border border-neutral-700 px-3 py-2 text-sm font-medium text-neutral-200 hover:bg-neutral-800" type="button" on:click={onClose}>Cancel</button>
+        <button class="rounded-md border border-neutral-700 px-3 py-2 text-sm font-medium text-neutral-200 hover:bg-neutral-800" type="button" on:click={handleClose}>Cancel</button>
         <button class="inline-flex items-center gap-2 rounded-md bg-teal-400 px-3 py-2 text-sm font-semibold text-neutral-950 hover:bg-teal-300 disabled:opacity-40" type="button" disabled={!candidates.length || busy} on:click={commit}>
           <Check size={16} /> Add to media library
         </button>

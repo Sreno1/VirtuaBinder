@@ -1,31 +1,27 @@
-import type { GalleryPhoto, ScanAsset, ScanRole, ScanSide, StagedImportCandidate } from '../types';
+import type { ScanRole, ScanSide, StagedImportCandidate } from '../types';
 import { uid } from '../domain/id';
 
 type StatusCallback = (message: string) => void;
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+
+export type RasterizedGalleryPhoto = {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  createdAt: number;
+  blob: Blob;
+};
 
 function isImageName(name: string) {
   const lower = name.toLowerCase();
   return IMAGE_EXTENSIONS.some((extension) => lower.endsWith(extension));
 }
 
-function stagedToAsset(candidate: StagedImportCandidate): ScanAsset {
-  return {
-    id: uid('scan'),
-    name: candidate.name,
-    source: candidate.source,
-    pageNumber: candidate.pageNumber,
-    role: candidate.role,
-    side: candidate.side,
-    image: candidate.image,
-    width: candidate.width,
-    height: candidate.height,
-    createdAt: candidate.createdAt
-  };
-}
-
-export async function importScanFiles(files: File[], onStatus: StatusCallback): Promise<ScanAsset[]> {
-  return (await stageImportFiles(files, onStatus)).map(stagedToAsset);
+function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.9): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Failed to encode image.'))), 'image/jpeg', quality);
+  });
 }
 
 export async function stageImportFiles(
@@ -103,6 +99,7 @@ async function renderPdf(
     canvas.height = Math.floor(viewport.height);
     await page.render({ canvasContext: context, viewport }).promise;
 
+    const blob = await canvasToBlob(canvas);
     imported.push({
       id: uid('candidate'),
       name: pdf.numPages > 1 ? `${name} p.${pageNumber}` : name,
@@ -110,10 +107,11 @@ async function renderPdf(
       pageNumber,
       role: defaults.role ?? 'binder',
       side: defaults.side ?? 'unspecified',
-      image: canvas.toDataURL('image/jpeg', 0.9),
+      image: URL.createObjectURL(blob),
       width: canvas.width,
       height: canvas.height,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      blob
     });
   }
 
@@ -129,7 +127,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-async function rasterizeImageBlob(blob: Blob, maxWidth = 1800): Promise<{ image: string; width: number; height: number }> {
+async function rasterizeImageBlob(blob: Blob, maxWidth = 1800): Promise<{ blob: Blob; width: number; height: number }> {
   const url = URL.createObjectURL(blob);
   try {
     const image = await loadImage(url);
@@ -142,7 +140,7 @@ async function rasterizeImageBlob(blob: Blob, maxWidth = 1800): Promise<{ image:
     canvas.height = Math.max(1, Math.floor(image.naturalHeight * scale));
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-    return { image: canvas.toDataURL('image/jpeg', 0.9), width: canvas.width, height: canvas.height };
+    return { blob: await canvasToBlob(canvas), width: canvas.width, height: canvas.height };
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -163,17 +161,20 @@ async function renderImage(
     pageNumber,
     role: defaults.role ?? 'binder',
     side: defaults.side ?? 'unspecified',
-    ...rasterized,
-    createdAt: Date.now()
+    image: URL.createObjectURL(rasterized.blob),
+    width: rasterized.width,
+    height: rasterized.height,
+    createdAt: Date.now(),
+    blob: rasterized.blob
   };
 }
 
-export async function readGalleryPhotos(files: File[]): Promise<GalleryPhoto[]> {
-  const photos: GalleryPhoto[] = [];
+export async function readGalleryPhotos(files: File[]): Promise<RasterizedGalleryPhoto[]> {
+  const photos: RasterizedGalleryPhoto[] = [];
   for (const file of files) {
     if (!isImageName(file.name)) continue;
     const rasterized = await rasterizeImageBlob(file);
-    photos.push({ id: uid('photo'), name: file.name, ...rasterized, createdAt: Date.now() });
+    photos.push({ id: uid('photo'), name: file.name, width: rasterized.width, height: rasterized.height, createdAt: Date.now(), blob: rasterized.blob });
   }
   return photos;
 }

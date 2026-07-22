@@ -1,11 +1,22 @@
-import type { ScanAsset } from '../types';
-import { clamp, round, uid } from './id';
+import { clamp, round } from './id';
 
 export type CropRect = {
   x: number;
   y: number;
   w: number;
   h: number;
+};
+
+export type CropSource = {
+  image: string;
+  width: number;
+  height: number;
+};
+
+export type CroppedImage = {
+  blob: Blob;
+  width: number;
+  height: number;
 };
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -17,10 +28,16 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-export async function cropScanAsset(asset: ScanAsset, rect: CropRect, name: string): Promise<ScanAsset> {
-  const image = await loadImage(asset.image);
-  const sourceWidth = image.naturalWidth || asset.width;
-  const sourceHeight = image.naturalHeight || asset.height;
+function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.92): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Failed to encode the cropped image.'))), 'image/jpeg', quality);
+  });
+}
+
+export async function cropScanAsset(source: CropSource, rect: CropRect): Promise<CroppedImage> {
+  const image = await loadImage(source.image);
+  const sourceWidth = image.naturalWidth || source.width;
+  const sourceHeight = image.naturalHeight || source.height;
   const sx = Math.floor((clamp(rect.x, 0, 100) / 100) * sourceWidth);
   const sy = Math.floor((clamp(rect.y, 0, 100) / 100) * sourceHeight);
   const sw = Math.max(1, Math.floor((clamp(rect.w, 0, 100) / 100) * sourceWidth));
@@ -33,16 +50,5 @@ export async function cropScanAsset(asset: ScanAsset, rect: CropRect, name: stri
   canvas.height = Math.min(sh, sourceHeight - sy);
   context.drawImage(image, sx, sy, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
 
-  return {
-    id: uid('scan'),
-    name,
-    source: `${asset.name} crop`,
-    pageNumber: asset.pageNumber,
-    role: 'item',
-    side: 'unspecified',
-    image: canvas.toDataURL('image/jpeg', 0.92),
-    width: round(canvas.width),
-    height: round(canvas.height),
-    createdAt: Date.now()
-  };
+  return { blob: await canvasToBlob(canvas), width: round(canvas.width), height: round(canvas.height) };
 }

@@ -5,6 +5,7 @@ import type {
   BinderPage,
   BinderStoreState,
   BinderUiState,
+  GalleryPhoto,
   LocationOption,
   PageTemplate,
   ScanAsset,
@@ -21,9 +22,17 @@ import { createBlankTemplate, createGridTemplate, createPhotoTemplate, duplicate
 import { buildPreviewSides, buildPreviewSpreads } from '../domain/preview';
 import { findLocationByInput, locationInputValue } from '../domain/locations';
 import { exportStateJson, parseStateJson } from '../services/exportJson';
+import { exportShareableHtml } from '../services/exportHtml';
 import { readGalleryPhotos } from '../services/importScans';
-import { loadStoredState, saveStoredState } from '../services/storage';
+import { clearStoredState, dataUrlToBlob, deleteBlobs, loadStoredState, saveBlob, saveStoredState } from '../services/storage';
 import { applyTheme, loadStoredThemeId, saveThemeId } from '../theme/applyTheme';
+
+function revokeProjectUrls(project: AppState) {
+  for (const asset of project.assets) URL.revokeObjectURL(asset.image);
+  for (const item of project.items) {
+    for (const photo of item.gallery ?? []) URL.revokeObjectURL(photo.image);
+  }
+}
 
 function initialUi(project: AppState): BinderUiState {
   return {
@@ -196,21 +205,25 @@ export const binderStore = {
     }));
   },
 
-  removeAsset(id: string) {
-    patchProject((project) => ({
-      ...project,
-      assets: project.assets.filter((asset) => asset.id !== id),
-      pages: project.pages.map((page) => ({
+  async removeAsset(id: string) {
+    const { project } = get(store);
+    const asset = project.assets.find((candidate) => candidate.id === id);
+    patchProject((current) => ({
+      ...current,
+      assets: current.assets.filter((candidate) => candidate.id !== id),
+      pages: current.pages.map((page) => ({
         ...page,
         frontScanId: page.frontScanId === id ? undefined : page.frontScanId,
         backScanId: page.backScanId === id ? undefined : page.backScanId
       })),
-      items: project.items.map((item) => ({
+      items: current.items.map((item) => ({
         ...item,
         frontScanId: item.frontScanId === id ? undefined : item.frontScanId,
         backScanId: item.backScanId === id ? undefined : item.backScanId
       }))
     }));
+    if (asset) URL.revokeObjectURL(asset.image);
+    await deleteBlobs([id]);
   },
 
   addTemplate(kind: 'grid' | 'photo' | 'blank') {
@@ -342,72 +355,80 @@ export const binderStore = {
     updateUi({ activeBookletPageId: page.id });
   },
 
-  commitImportedAssets(candidates: StagedImportCandidate[], assignPage?: { pageId: string; side: 'front' | 'back' }) {
+  async commitImportedAssets(candidates: StagedImportCandidate[], assignPage?: { pageId: string; side: 'front' | 'back' }) {
     if (!candidates.length) return;
-    const assets: ScanAsset[] = candidates.flatMap((candidate) => {
-      const baseName = candidate.name.trim() || candidate.name || `${candidate.source} p.${candidate.pageNumber}`;
-      if (candidate.role === 'binder') {
+    const assetGroups = await Promise.all(
+      candidates.map(async (candidate): Promise<ScanAsset[]> => {
+        const baseName = candidate.name.trim() || candidate.name || `${candidate.source} p.${candidate.pageNumber}`;
+        if (candidate.role === 'binder') {
+          const id = uid('scan');
+          return [
+            {
+              id,
+              name: baseName,
+              source: candidate.source,
+              pageNumber: candidate.pageNumber,
+              role: 'binder',
+              side: candidate.side,
+              image: await saveBlob(id, candidate.blob),
+              width: candidate.width,
+              height: candidate.height,
+              createdAt: Date.now()
+            }
+          ];
+        }
+
+        const cropAssets: ScanAsset[] = [];
+        if (candidate.frontCrop) {
+          const id = uid('scan');
+          cropAssets.push({
+            id,
+            name: `${baseName} front`,
+            source: `${candidate.source} crop`,
+            pageNumber: candidate.pageNumber,
+            role: 'item',
+            side: 'front',
+            image: await saveBlob(id, candidate.frontCrop.blob),
+            width: candidate.frontCrop.width,
+            height: candidate.frontCrop.height,
+            createdAt: Date.now()
+          });
+        }
+        if (candidate.backCrop) {
+          const id = uid('scan');
+          cropAssets.push({
+            id,
+            name: `${baseName} back`,
+            source: `${candidate.source} crop`,
+            pageNumber: candidate.pageNumber,
+            role: 'item',
+            side: 'back',
+            image: await saveBlob(id, candidate.backCrop.blob),
+            width: candidate.backCrop.width,
+            height: candidate.backCrop.height,
+            createdAt: Date.now()
+          });
+        }
+        if (cropAssets.length) return cropAssets;
+
+        const id = uid('scan');
         return [
           {
-            id: uid('scan'),
+            id,
             name: baseName,
             source: candidate.source,
             pageNumber: candidate.pageNumber,
-            role: 'binder',
-            side: candidate.side,
-            image: candidate.image,
+            role: 'item',
+            side: candidate.side === 'back' ? 'back' : 'front',
+            image: await saveBlob(id, candidate.blob),
             width: candidate.width,
             height: candidate.height,
             createdAt: Date.now()
           }
         ];
-      }
-
-      const cropAssets: ScanAsset[] = [];
-      if (candidate.frontCrop) {
-        cropAssets.push({
-          id: uid('scan'),
-          name: `${baseName} front`,
-          source: `${candidate.source} crop`,
-          pageNumber: candidate.pageNumber,
-          role: 'item',
-          side: 'front',
-          image: candidate.frontCrop.image,
-          width: candidate.frontCrop.width,
-          height: candidate.frontCrop.height,
-          createdAt: Date.now()
-        });
-      }
-      if (candidate.backCrop) {
-        cropAssets.push({
-          id: uid('scan'),
-          name: `${baseName} back`,
-          source: `${candidate.source} crop`,
-          pageNumber: candidate.pageNumber,
-          role: 'item',
-          side: 'back',
-          image: candidate.backCrop.image,
-          width: candidate.backCrop.width,
-          height: candidate.backCrop.height,
-          createdAt: Date.now()
-        });
-      }
-      if (cropAssets.length) return cropAssets;
-      return [
-        {
-          id: uid('scan'),
-          name: baseName,
-          source: candidate.source,
-          pageNumber: candidate.pageNumber,
-          role: 'item',
-          side: candidate.side === 'back' ? 'back' : 'front',
-          image: candidate.image,
-          width: candidate.width,
-          height: candidate.height,
-          createdAt: Date.now()
-        }
-      ];
-    });
+      })
+    );
+    const assets = assetGroups.flat();
 
     const firstAssignablePageAsset = assets.find((asset) => asset.role === 'binder');
     patchProject((project) => ({
@@ -570,19 +591,27 @@ export const binderStore = {
 
   async addGalleryPhotos(itemId: string, files: File[]) {
     if (!files.length) return;
-    const photos = await readGalleryPhotos(files);
-    if (!photos.length) return;
+    const rasterized = await readGalleryPhotos(files);
+    if (!rasterized.length) return;
+    const photos: GalleryPhoto[] = await Promise.all(
+      rasterized.map(async ({ blob, ...meta }) => ({ ...meta, image: await saveBlob(meta.id, blob) }))
+    );
     const { project } = get(store);
     const item = project.items.find((candidate) => candidate.id === itemId);
     if (!item) return;
     updateItemById(itemId, { gallery: [...(item.gallery ?? []), ...photos] });
   },
 
-  removeGalleryPhoto(itemId: string, photoId: string) {
+  async removeGalleryPhoto(itemId: string, photoId: string) {
     const { project } = get(store);
     const item = project.items.find((candidate) => candidate.id === itemId);
     if (!item) return;
-    updateItemById(itemId, { gallery: (item.gallery ?? []).filter((photo) => photo.id !== photoId) });
+    const photo = item.gallery?.find((candidate) => candidate.id === photoId);
+    updateItemById(itemId, { gallery: (item.gallery ?? []).filter((candidate) => candidate.id !== photoId) });
+    if (photo) {
+      URL.revokeObjectURL(photo.image);
+      await deleteBlobs([photo.id]);
+    }
   },
 
   async cropItemFromAsset(itemId: string, assetId: string, side: 'front' | 'back', rect: CropRect) {
@@ -592,8 +621,20 @@ export const binderStore = {
     const source = project.assets.find((asset) => asset.id === assetId);
     if (!item || !source) return;
 
-    const cropped = await cropScanAsset(source, rect, `${item.title || 'Item'} ${side} crop`);
-    cropped.side = side;
+    const { blob, width, height } = await cropScanAsset(source, rect);
+    const id = uid('scan');
+    const cropped: ScanAsset = {
+      id,
+      name: `${item.title || 'Item'} ${side} crop`,
+      source: `${source.name} crop`,
+      pageNumber: source.pageNumber,
+      role: 'item',
+      side,
+      image: await saveBlob(id, blob),
+      width,
+      height,
+      createdAt: Date.now()
+    };
     setProject({
       ...project,
       assets: [...project.assets, cropped],
@@ -648,14 +689,37 @@ export const binderStore = {
     updateUi(context === 'item' ? { itemLocationFocused: focused } : { shadowLocationFocused: focused });
   },
 
-  exportJson() {
-    exportStateJson(get(store).project);
+  async exportJson() {
+    await exportStateJson(get(store).project);
+  },
+
+  async exportHtml() {
+    const { project, ui } = get(store);
+    await exportShareableHtml(project, ui.theme);
   },
 
   async importJson(file: File) {
     updateUi({ importBusy: true, importStatus: `Importing ${file.name}...` });
     try {
-      const project = normalizeProject(await parseStateJson(file));
+      const parsed = normalizeProject(await parseStateJson(file));
+
+      revokeProjectUrls(get(store).project);
+      await clearStoredState();
+
+      const assets = await Promise.all(
+        parsed.assets.map(async (asset) => ({ ...asset, image: await saveBlob(asset.id, await dataUrlToBlob(asset.image)) }))
+      );
+      const items = await Promise.all(
+        parsed.items.map(async (item) => {
+          if (!item.gallery?.length) return item;
+          const gallery = await Promise.all(
+            item.gallery.map(async (photo) => ({ ...photo, image: await saveBlob(photo.id, await dataUrlToBlob(photo.image)) }))
+          );
+          return { ...item, gallery };
+        })
+      );
+      const project = { ...parsed, assets, items };
+
       setProject(project);
       updateUi({
         activeBookletPageId: project.pages[0]?.id ?? '',
@@ -676,6 +740,7 @@ export const binderStore = {
   },
 
   async clearAll() {
+    revokeProjectUrls(get(store).project);
     const project = defaultState();
     saveActiveTab('booklet');
     store.set({
@@ -686,7 +751,7 @@ export const binderStore = {
         selectedTemplateId: project.templates[0]?.id ?? ''
       }
     });
-    await saveStoredState(project);
+    await clearStoredState();
   }
 };
 
