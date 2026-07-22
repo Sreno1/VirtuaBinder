@@ -24,6 +24,7 @@ Scan (or photograph) the pages of a physical binder, drop the images in, and Vir
 - **Flip-card item viewer** — click any item to open a full-screen, flippable front/back "ticket" view with its metadata and gallery.
 - **Local-first persistence** — the entire project (scans, templates, pages, items) auto-saves to the browser's IndexedDB. Nothing is uploaded anywhere.
 - **Portable backups** — export the whole project as a single JSON file (images included, base64-encoded) and re-import it on any device/browser.
+- **Sharable HTML Exports** — Export your finished Virtual Binder as an HTML file to share with anyone
 
 ## Privacy & data
 
