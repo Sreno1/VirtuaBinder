@@ -2,7 +2,7 @@
   import { ChevronLeft, ChevronRight, Eye } from '@lucide/svelte';
   import EmptyState from './ui/EmptyState.svelte';
   import { buildPreviewSides, buildPreviewSpreads } from '../domain/preview';
-  import { slotPositionStyle } from '../domain/geometry';
+  import { previewSlotPositionStyle } from '../domain/geometry';
   import { displayItemTitle } from '../domain/items';
   import { itemForSlot } from '../domain/project';
   import { binderStore } from '../state/binderStore';
@@ -23,29 +23,31 @@
 
 {#snippet previewSurface(side: PreviewSide)}
   {#if side.asset}
-    <img class="max-h-[78vh] max-w-full object-contain" src={side.asset.image} alt={pageTitle(side)} />
-    {#if side.kind === 'page' && side.page}
-      {@const template = project.templates.find((candidate) => candidate.id === side.page?.templateId)}
-      {#if template}
-        {#each template.slots as slot (slot.id)}
-          {@const item = itemForSlot(project.items, side.page.id, slot.id)}
-          <button
-            class={`absolute border-2 bg-transparent ${ui.previewBorders ? 'border-teal-300 hover:border-amber-300' : 'border-transparent hover:border-amber-300'}`}
-            style={slotPositionStyle(slot, side.side === 'back')}
-            type="button"
-            title={item ? displayItemTitle(item) : `Slot ${slot.label}`}
-            on:click={() => side.page && binderStore.openPreviewSlot(side.page, slot, side.side)}
-          ></button>
-        {/each}
+    <div class="relative inline-block max-h-[78vh] max-w-full">
+      <img class="block max-h-[78vh] max-w-full object-contain" src={side.asset.image} alt={pageTitle(side)} />
+      {#if side.kind === 'page' && side.page}
+        {@const template = project.templates.find((candidate) => candidate.id === side.page?.templateId)}
+        {#if template}
+          {#each template.slots as slot (slot.id)}
+            {@const item = itemForSlot(project.items, side.page.id, slot.id)}
+            <button
+              class={`absolute border-2 bg-transparent ${ui.previewBorders ? 'border-teal-300 hover:border-amber-300' : 'border-transparent hover:border-amber-300'}`}
+              style={previewSlotPositionStyle(slot, side.side === 'back')}
+              type="button"
+              title={item ? displayItemTitle(item) : `Slot ${slot.label}`}
+              on:click={() => side.page && binderStore.openPreviewSlot(side.page, slot, side.side)}
+            ></button>
+          {/each}
+        {/if}
+      {:else if side.kind === 'loose' && side.item}
+        <button
+          class="absolute inset-0 cursor-zoom-in"
+          type="button"
+          aria-label={`Open ${pageTitle(side)}`}
+          on:click={() => side.item && binderStore.openItemShadowbox(side.item.id, side.side)}
+        ></button>
       {/if}
-    {:else if side.kind === 'loose' && side.item}
-      <button
-        class="absolute inset-0 cursor-zoom-in"
-        type="button"
-        aria-label={`Open ${pageTitle(side)}`}
-        on:click={() => side.item && binderStore.openItemShadowbox(side.item.id, side.side)}
-      ></button>
-    {/if}
+    </div>
   {:else}
     <div class="px-6 text-center text-sm text-neutral-500">
       {#if side.kind === 'loose' && side.item}

@@ -5,7 +5,7 @@ export function exportStateJson(state: AppState) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `timeline-binder-${new Date().toISOString().slice(0, 10)}.json`;
+  anchor.download = `virtuabinder-${new Date().toISOString().slice(0, 10)}.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -13,7 +13,7 @@ export function exportStateJson(state: AppState) {
 export async function parseStateJson(file: File): Promise<AppState> {
   const parsed = JSON.parse(await file.text()) as AppState;
   if (parsed.version !== 1 || !Array.isArray(parsed.assets) || !Array.isArray(parsed.templates)) {
-    throw new Error('That file does not look like a Timeline Binder export.');
+    throw new Error('That file does not look like a VirtuaBinder export.');
   }
   return parsed;
 }

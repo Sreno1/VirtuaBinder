@@ -1,8 +1,19 @@
 {
-  "name": "timeline-binder",
+  "name": "virtuabinder",
   "private": true,
   "version": "0.1.0",
+  "description": "A local-first, browser-based app for scanning, organizing, and reliving physical memorabilia binders — concert tickets, trading cards, photos, and more — as an interactive digital binder.",
+  "author": "Steven Lykins",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sreno1/VirtuaBinder.git"
+  },
+  "homepage": "https://sreno1.github.io/VirtuaBinder/",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",

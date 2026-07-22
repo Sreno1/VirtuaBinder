@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Eye, FileArchive, Upload } from '@lucide/svelte';
+  import { Eye, FileArchive, Upload, X } from '@lucide/svelte';
   import BookletPageList from './BookletPageList.svelte';
   import CropFromScanModal from './CropFromScanModal.svelte';
   import EmptyState from './ui/EmptyState.svelte';
@@ -79,6 +79,13 @@
   function pageSideAsset(pageSide: 'front' | 'back') {
     const id = pageSideId(pageSide);
     return project.assets.find((asset) => asset.id === id);
+  }
+
+  function handleGalleryUpload(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    if (files.length && selectedItem) void binderStore.addGalleryPhotos(selectedItem.id, files);
+    input.value = '';
   }
 </script>
 
@@ -292,6 +299,34 @@
           <span class="text-sm font-medium text-neutral-400">Notes</span>
           <textarea class="mt-1 min-h-28 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm" value={selectedItem.notes} on:input={(event) => binderStore.updateItem(selectedItem.id, { notes: (event.currentTarget as HTMLTextAreaElement).value })}></textarea>
         </label>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-neutral-400">Gallery</span>
+            <label class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-neutral-700 px-2.5 py-1.5 text-xs font-medium hover:bg-neutral-800">
+              <Upload size={14} /> Add photos
+              <input class="sr-only" type="file" accept="image/*" multiple on:change={handleGalleryUpload} />
+            </label>
+          </div>
+          {#if selectedItem.gallery?.length}
+            <div class="grid grid-cols-3 gap-2">
+              {#each selectedItem.gallery as photo (photo.id)}
+                <div class="group relative aspect-square overflow-hidden rounded-md bg-neutral-950">
+                  <img class="h-full w-full object-cover" src={photo.image} alt={photo.name} />
+                  <button
+                    class="absolute right-1 top-1 rounded-full bg-neutral-950/80 p-1 text-neutral-100 opacity-0 transition group-hover:opacity-100 hover:bg-red-500/80"
+                    type="button"
+                    aria-label={`Remove ${photo.name}`}
+                    on:click={() => binderStore.removeGalleryPhoto(selectedItem.id, photo.id)}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <p class="text-xs text-neutral-500">No auxiliary photos yet. Add one or more to build a gallery for this item.</p>
+          {/if}
+        </div>
         <div class="grid gap-2">
           <button class="inline-flex w-full items-center justify-center gap-2 rounded-md border border-neutral-700 px-3 py-2 text-sm font-medium hover:bg-neutral-800" type="button" on:click={() => openCropModal(selectedItem.id)}>
             <Upload size={16} /> Crop from scan

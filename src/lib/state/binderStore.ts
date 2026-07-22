@@ -21,6 +21,7 @@ import { createBlankTemplate, createGridTemplate, createPhotoTemplate, duplicate
 import { buildPreviewSides, buildPreviewSpreads } from '../domain/preview';
 import { findLocationByInput, locationInputValue } from '../domain/locations';
 import { exportStateJson, parseStateJson } from '../services/exportJson';
+import { readGalleryPhotos } from '../services/importScans';
 import { loadStoredState, saveStoredState } from '../services/storage';
 
 function initialUi(project: AppState): BinderUiState {
@@ -557,6 +558,23 @@ export const binderStore = {
 
   updateItem(id: string, patch: Partial<BinderItem>) {
     updateItemById(id, patch);
+  },
+
+  async addGalleryPhotos(itemId: string, files: File[]) {
+    if (!files.length) return;
+    const photos = await readGalleryPhotos(files);
+    if (!photos.length) return;
+    const { project } = get(store);
+    const item = project.items.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    updateItemById(itemId, { gallery: [...(item.gallery ?? []), ...photos] });
+  },
+
+  removeGalleryPhoto(itemId: string, photoId: string) {
+    const { project } = get(store);
+    const item = project.items.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    updateItemById(itemId, { gallery: (item.gallery ?? []).filter((photo) => photo.id !== photoId) });
   },
 
   async cropItemFromAsset(itemId: string, assetId: string, side: 'front' | 'back', rect: CropRect) {

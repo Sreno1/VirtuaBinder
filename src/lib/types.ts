@@ -24,6 +24,15 @@ export type StagedCrop = {
   height: number;
 };
 
+export type GalleryPhoto = {
+  id: string;
+  name: string;
+  image: string;
+  width: number;
+  height: number;
+  createdAt: number;
+};
+
 export type StagedImportCandidate = {
   id: string;
   name: string;
@@ -87,6 +96,7 @@ export type BinderItem = {
   notes: string;
   frontScanId?: string;
   backScanId?: string;
+  gallery?: GalleryPhoto[];
 };
 
 export type AppState = {

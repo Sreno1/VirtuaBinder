@@ -22,7 +22,8 @@ export function normalizeProject(state: AppState): AppState {
     ...state,
     items: state.items.map((item) => ({
       ...item,
-      kind: item.kind ?? 'slot'
+      kind: item.kind ?? 'slot',
+      gallery: item.gallery ?? []
     }))
   };
 }

@@ -16,7 +16,7 @@
         <span class="rounded border border-neutral-800 px-2 py-1 text-xs font-semibold uppercase">{displayItemDate(item)}</span>
       </div>
       <div class="py-5">
-        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-600">Timeline Binder</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-600">VirtuaBinder</p>
         <h3 class="mt-2 break-words text-3xl font-black leading-tight sm:text-5xl">{displayItemTitle(item)}</h3>
       </div>
       <div class="flex items-center justify-between border-t border-dashed border-neutral-700/50 pt-4 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">

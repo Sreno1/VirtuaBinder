@@ -26,14 +26,14 @@
 </script>
 
 <svelte:head>
-  <title>Timeline Binder</title>
+  <title>VirtuaBinder</title>
 </svelte:head>
 
 <main class="min-h-screen bg-neutral-950 text-neutral-100">
   <header class="border-b border-neutral-800 bg-neutral-950/90">
     <div class="mx-auto flex max-w-7xl flex-col items-stretch justify-between sm:px-3 lg:min-h-10 lg:flex-row">
       <div class="flex items-center px-3 py-1.5">
-        <h1 class="text-base font-semibold tracking-normal text-neutral-50">Timeline Binder</h1>
+        <h1 class="text-base font-semibold tracking-normal text-neutral-50">VirtuaBinder</h1>
       </div>
 
       <nav class="flex min-h-10 flex-wrap items-stretch border-t border-neutral-800 lg:border-t-0 lg:border-l" aria-label="Workflow">

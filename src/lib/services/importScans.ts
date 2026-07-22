@@ -1,4 +1,4 @@
-import type { ScanAsset, ScanRole, ScanSide, StagedImportCandidate } from '../types';
+import type { GalleryPhoto, ScanAsset, ScanRole, ScanSide, StagedImportCandidate } from '../types';
 import { uid } from '../domain/id';
 
 type StatusCallback = (message: string) => void;
@@ -129,13 +129,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-async function renderImage(
-  blob: Blob,
-  name: string,
-  source: string,
-  pageNumber: number,
-  defaults: Partial<Pick<StagedImportCandidate, 'role' | 'side'>>
-): Promise<StagedImportCandidate> {
+async function rasterizeImageBlob(blob: Blob, maxWidth = 1800): Promise<{ image: string; width: number; height: number }> {
   const url = URL.createObjectURL(blob);
   try {
     const image = await loadImage(url);
@@ -143,24 +137,43 @@ async function renderImage(
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Canvas rendering is not available in this browser.');
 
-    const scale = Math.min(1, 1800 / image.naturalWidth);
+    const scale = Math.min(1, maxWidth / image.naturalWidth);
     canvas.width = Math.max(1, Math.floor(image.naturalWidth * scale));
     canvas.height = Math.max(1, Math.floor(image.naturalHeight * scale));
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-    return {
-      id: uid('candidate'),
-      name,
-      source,
-      pageNumber,
-      role: defaults.role ?? 'binder',
-      side: defaults.side ?? 'unspecified',
-      image: canvas.toDataURL('image/jpeg', 0.9),
-      width: canvas.width,
-      height: canvas.height,
-      createdAt: Date.now()
-    };
+    return { image: canvas.toDataURL('image/jpeg', 0.9), width: canvas.width, height: canvas.height };
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+async function renderImage(
+  blob: Blob,
+  name: string,
+  source: string,
+  pageNumber: number,
+  defaults: Partial<Pick<StagedImportCandidate, 'role' | 'side'>>
+): Promise<StagedImportCandidate> {
+  const rasterized = await rasterizeImageBlob(blob);
+  return {
+    id: uid('candidate'),
+    name,
+    source,
+    pageNumber,
+    role: defaults.role ?? 'binder',
+    side: defaults.side ?? 'unspecified',
+    ...rasterized,
+    createdAt: Date.now()
+  };
+}
+
+export async function readGalleryPhotos(files: File[]): Promise<GalleryPhoto[]> {
+  const photos: GalleryPhoto[] = [];
+  for (const file of files) {
+    if (!isImageName(file.name)) continue;
+    const rasterized = await rasterizeImageBlob(file);
+    photos.push({ id: uid('photo'), name: file.name, ...rasterized, createdAt: Date.now() });
+  }
+  return photos;
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FlipHorizontal, Pencil, X } from '@lucide/svelte';
+  import { ChevronLeft, ChevronRight, FlipHorizontal, Pencil, X } from '@lucide/svelte';
   import LocationInput from './LocationInput.svelte';
   import TicketFallback from './TicketFallback.svelte';
   import { displayItemDate, displayItemLocation, displayItemNotes, displayItemPeople, displayItemTitle } from '../domain/items';
@@ -8,6 +8,7 @@
 
   const FLIP_GESTURE_DISTANCE = 28;
   let gestureStart: { x: number; y: number; pointerId: number } | null = null;
+  let enlargedIndex: number | null = null;
 
   $: project = $binderStore.project;
   $: ui = $binderStore.ui;
@@ -15,7 +16,15 @@
   $: front = project.assets.find((asset) => asset.id === item?.frontScanId);
   $: back = project.assets.find((asset) => asset.id === item?.backScanId);
   $: hasNotes = Boolean(item?.notes.trim());
+  $: gallery = item?.gallery ?? [];
+  $: enlargedPhoto = enlargedIndex !== null ? (gallery[enlargedIndex] ?? null) : null;
   $: binderStore.syncLocationInput(item, 'shadow');
+  $: if (!item) enlargedIndex = null;
+
+  function showRelativePhoto(direction: -1 | 1) {
+    if (enlargedIndex === null || !gallery.length) return;
+    enlargedIndex = (enlargedIndex + direction + gallery.length) % gallery.length;
+  }
 
   function beginFlipGesture(event: PointerEvent) {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -43,7 +52,15 @@
 
   function handleDialogKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
-      binderStore.closeShadowbox();
+      if (enlargedIndex !== null) {
+        enlargedIndex = null;
+      } else {
+        binderStore.closeShadowbox();
+      }
+    } else if (enlargedIndex !== null && event.key === 'ArrowLeft') {
+      showRelativePhoto(-1);
+    } else if (enlargedIndex !== null && event.key === 'ArrowRight') {
+      showRelativePhoto(1);
     }
   }
 
@@ -56,12 +73,26 @@
 </script>
 
 {#if item}
-  <div class="fixed inset-0 z-50 overflow-auto" role="dialog" aria-modal="true" tabindex="0" on:keydown={handleDialogKeydown}>
+  <div class="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" tabindex="0" on:keydown={handleDialogKeydown}>
     <button class="fixed inset-0 bg-black/95" type="button" aria-label="Close item viewer" on:click={() => binderStore.closeShadowbox()}></button>
-    <div class="relative flex min-h-screen flex-col items-center justify-center px-4 py-12 pointer-events-none">
-      <div class="flex w-full max-w-6xl flex-col items-center gap-5 pointer-events-auto">
+    <button class="fixed right-5 top-5 z-10 rounded-full border border-neutral-700 bg-neutral-950/75 p-3 text-neutral-100 shadow-lg backdrop-blur hover:bg-neutral-800" type="button" aria-label="Close item viewer" on:click={() => binderStore.closeShadowbox()}>
+      <X size={18} />
+    </button>
+    <div class="relative flex h-full flex-col items-center justify-center px-4 py-6 pointer-events-none">
+      <div class="flex h-full w-full max-w-6xl flex-col items-center gap-3 pointer-events-auto">
+        {#if !ui.shadowEditing}
+          <section class="flex w-full max-w-3xl shrink-0 flex-wrap items-center justify-center gap-x-6 gap-y-1 text-center text-sm font-medium drop-shadow-2xl">
+            <p class="text-neutral-100">{displayItemTitle(item)}</p>
+            <p class="text-teal-300">{displayItemDate(item)}</p>
+            {#if locationForItem(item)}
+              <p class="text-amber-200">{displayItemLocation(item)}</p>
+            {/if}
+            <p class="text-neutral-300">{displayItemPeople(item)}</p>
+          </section>
+        {/if}
+
         <div
-          class="flip-card h-[min(72vh,760px)] min-h-[320px] w-full cursor-grab select-none active:cursor-grabbing"
+          class="flip-card relative min-h-0 w-full flex-1 cursor-grab select-none active:cursor-grabbing"
           role="button"
           tabindex="0"
           aria-label="Flip item by dragging, swiping, or pressing Enter"
@@ -90,7 +121,7 @@
         </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex shrink-0 items-center gap-2">
           <button class="rounded-full border border-neutral-700 bg-neutral-950/75 p-3 text-neutral-100 shadow-lg backdrop-blur hover:bg-neutral-800" type="button" aria-label="Flip item" title="Flip" on:click={() => binderStore.setShadowFlipped(!ui.shadowFlipped)}>
             <FlipHorizontal size={18} />
           </button>
@@ -105,18 +136,25 @@
           </button>
         </div>
 
-        {#if !ui.shadowEditing}
-          <section class="max-w-3xl text-center text-neutral-100 drop-shadow-2xl">
-            <h2 class="text-2xl font-semibold">{displayItemTitle(item)}</h2>
-            <p class="mt-2 text-sm uppercase tracking-[0.18em] text-teal-300">{displayItemDate(item)}</p>
-            {#if locationForItem(item)}
-              <p class="mt-2 text-sm text-amber-200">{displayItemLocation(item)}</p>
-            {/if}
-            <p class="mt-3 text-sm text-neutral-300">{displayItemPeople(item)}</p>
-            {#if hasNotes}
-              <p class="mt-3 whitespace-pre-wrap text-sm leading-6 text-neutral-200">{displayItemNotes(item)}</p>
-            {/if}
+        {#if !ui.shadowEditing && gallery.length}
+          <section class="w-full max-w-3xl shrink-0">
+            <div class="flex justify-center gap-2 overflow-x-auto pb-1">
+              {#each gallery as photo, index (photo.id)}
+                <button
+                  class="h-14 w-14 shrink-0 overflow-hidden rounded-md border border-neutral-700 shadow-lg transition hover:border-teal-300"
+                  type="button"
+                  aria-label={`View ${photo.name}`}
+                  on:click={() => (enlargedIndex = index)}
+                >
+                  <img class="h-full w-full object-cover" src={photo.image} alt={photo.name} />
+                </button>
+              {/each}
+            </div>
           </section>
+        {/if}
+
+        {#if !ui.shadowEditing && hasNotes}
+          <p class="max-h-16 max-w-3xl shrink-0 overflow-y-auto whitespace-pre-wrap text-center text-sm leading-6 text-neutral-200 drop-shadow-2xl">{displayItemNotes(item)}</p>
         {/if}
 
         {#if ui.shadowEditing}
@@ -153,5 +191,54 @@
         {/if}
       </div>
     </div>
+
+    {#if enlargedPhoto}
+      <div class="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 p-6" role="dialog" aria-modal="true" aria-label={enlargedPhoto.name}>
+        <button class="fixed inset-0 bg-black/90" type="button" aria-label="Close photo" on:click={() => (enlargedIndex = null)}></button>
+
+        <div class="relative flex w-full flex-1 items-center justify-center">
+          {#if gallery.length > 1}
+            <button
+              class="absolute left-2 z-10 rounded-full border border-neutral-700 bg-neutral-950/75 p-3 text-neutral-100 shadow-lg backdrop-blur hover:bg-neutral-800 sm:left-6"
+              type="button"
+              aria-label="Previous photo"
+              on:click={() => showRelativePhoto(-1)}
+            >
+              <ChevronLeft size={20} />
+            </button>
+          {/if}
+          <img class="relative max-h-[70vh] max-w-full rounded object-contain shadow-2xl" src={enlargedPhoto.image} alt={enlargedPhoto.name} draggable="false" />
+          {#if gallery.length > 1}
+            <button
+              class="absolute right-2 z-10 rounded-full border border-neutral-700 bg-neutral-950/75 p-3 text-neutral-100 shadow-lg backdrop-blur hover:bg-neutral-800 sm:right-6"
+              type="button"
+              aria-label="Next photo"
+              on:click={() => showRelativePhoto(1)}
+            >
+              <ChevronRight size={20} />
+            </button>
+          {/if}
+        </div>
+
+        {#if gallery.length > 1}
+          <div class="relative flex max-w-full gap-2 overflow-x-auto px-2 pb-1">
+            {#each gallery as photo, index (photo.id)}
+              <button
+                class={`h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 shadow-lg transition ${index === enlargedIndex ? 'border-teal-300' : 'border-neutral-700 hover:border-neutral-500'}`}
+                type="button"
+                aria-label={`View ${photo.name}`}
+                on:click={() => (enlargedIndex = index)}
+              >
+                <img class="h-full w-full object-cover" src={photo.image} alt={photo.name} />
+              </button>
+            {/each}
+          </div>
+        {/if}
+
+        <button class="fixed right-5 top-5 rounded-full border border-neutral-700 bg-neutral-950/75 p-3 text-neutral-100 shadow-lg backdrop-blur hover:bg-neutral-800" type="button" aria-label="Close photo" on:click={() => (enlargedIndex = null)}>
+          <X size={18} />
+        </button>
+      </div>
+    {/if}
   </div>
 {/if}
