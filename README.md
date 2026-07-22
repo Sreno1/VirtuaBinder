@@ -9,6 +9,7 @@ Scan (or photograph) the pages of a physical binder, drop the images in, and Vir
 [![CI](https://github.com/Sreno1/VirtuaBinder/actions/workflows/ci.yml/badge.svg)](https://github.com/Sreno1/VirtuaBinder/actions/workflows/ci.yml)
 [![Deploy](https://github.com/Sreno1/VirtuaBinder/actions/workflows/deploy.yml/badge.svg)](https://github.com/Sreno1/VirtuaBinder/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/I2I51WBHVL)
 
 ## Features
 
